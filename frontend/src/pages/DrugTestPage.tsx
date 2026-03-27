@@ -87,8 +87,8 @@ export default function DrugTestPage() {
     queryFn: () => api.get('/drug-tests/consortium').then((r) => r.data),
   });
 
-  const testForm = useForm({ resolver: zodResolver(testSchema), defaultValues: { testType: 'RANDOM', status: 'SCHEDULED' } });
-  const cForm = useForm({ resolver: zodResolver(consortiumSchema) });
+  const testForm = useForm<z.infer<typeof testSchema>>({ resolver: zodResolver(testSchema), defaultValues: { testType: 'RANDOM', status: 'SCHEDULED' } });
+  const cForm = useForm<z.infer<typeof consortiumSchema>>({ resolver: zodResolver(consortiumSchema) });
 
   const createTestMutation = useMutation({
     mutationFn: (d: any) =>

@@ -94,9 +94,9 @@ export default function IFTAPage() {
     enabled: tab === 'mileage',
   });
 
-  const qForm = useForm({ resolver: zodResolver(quarterSchema), defaultValues: { year: new Date().getFullYear(), quarter: Math.ceil((new Date().getMonth() + 1) / 3) } });
-  const mForm = useForm({ resolver: zodResolver(mileageSchema), defaultValues: { state: 'TX' } });
-  const fForm = useForm({ resolver: zodResolver(fuelSchema), defaultValues: { state: 'TX', quarterId: selectedQuarter ?? '' } });
+  const qForm = useForm<z.infer<typeof quarterSchema>>({ resolver: zodResolver(quarterSchema), defaultValues: { year: new Date().getFullYear(), quarter: Math.ceil((new Date().getMonth() + 1) / 3) } });
+  const mForm = useForm<z.infer<typeof mileageSchema>>({ resolver: zodResolver(mileageSchema), defaultValues: { state: 'TX' } });
+  const fForm = useForm<z.infer<typeof fuelSchema>>({ resolver: zodResolver(fuelSchema), defaultValues: { state: 'TX', quarterId: selectedQuarter ?? '' } });
 
   const createQuarterMutation = useMutation({
     mutationFn: (d: any) => api.post('/ifta/quarters', d),

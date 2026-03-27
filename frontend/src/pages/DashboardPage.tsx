@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
-import { formatDistanceToNow, format, isPast, differenceInDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 interface Deadline {
   id: string;
