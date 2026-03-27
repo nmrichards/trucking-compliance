@@ -1,0 +1,282 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  companyName           String?
+  dotNumber             String?
+  // Stripe
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?  @unique
+  subscriptionStatus    SubscriptionStatus @default(TRIAL)
+  trialEndsAt           DateTime?
+  subscriptionEndsAt    DateTime?
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  refreshTokens         RefreshToken[]
+  complianceDeadlines   ComplianceDeadline[]
+  dqfDocuments          DQFDocument[]
+  iftaQuarters          IFTAQuarter[]
+  iftaMileageLogs       IFTAMileageLog[]
+  drugTests             DrugTest[]
+  renewalItems          RenewalItem[]
+
+  @@map("users")
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ─── Compliance Calendar ────────────────────────────────────────────────────
+
+model ComplianceDeadline {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    DeadlineCategory
+  dueDate     DateTime
+  recurrence  RecurrenceType      @default(NONE)
+  completed   Boolean             @default(false)
+  completedAt DateTime?
+  alertDays   Int[]               @default([30, 14, 7, 1])
+  notes       String?
+  externalUrl String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@map("compliance_deadlines")
+}
+
+enum DeadlineCategory {
+  MEDICAL
+  CDL_RENEWAL
+  DRUG_TEST
+  CLEARINGHOUSE
+  IFTA_FILING
+  IRP_RENEWAL
+  UCR_RENEWAL
+  OPERATING_AUTHORITY
+  INSURANCE
+  BOC3
+  ANNUAL_INSPECTION
+  OTHER
+}
+
+enum RecurrenceType {
+  NONE
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+// ─── Driver Qualification File ──────────────────────────────────────────────
+
+model DQFDocument {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  docType     DQFDocType
+  title       String
+  fileUrl     String?
+  fileKey     String?
+  issuedAt    DateTime?
+  expiresAt   DateTime?
+  alertDays   Int[]       @default([60, 30, 14, 7])
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("dqf_documents")
+}
+
+enum DQFDocType {
+  CDL
+  MEDICAL_CERTIFICATE
+  MVR
+  EMPLOYMENT_HISTORY
+  ROAD_TEST
+  DRUG_TEST_PRE_EMPLOYMENT
+  BACKGROUND_CHECK
+  CLEARINGHOUSE_QUERY
+  OTHER
+}
+
+// ─── IFTA ────────────────────────────────────────────────────────────────────
+
+model IFTAQuarter {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year        Int
+  quarter     Int            // 1-4
+  status      IFTAStatus     @default(OPEN)
+  filedAt     DateTime?
+  dueDate     DateTime
+  notes       String?
+  fuelLogs    IFTAFuelLog[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, year, quarter])
+  @@map("ifta_quarters")
+}
+
+enum IFTAStatus {
+  OPEN
+  READY
+  FILED
+  AMENDED
+}
+
+model IFTAMileageLog {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  state       String      // 2-letter state/province code
+  miles       Float
+  truckId     String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("ifta_mileage_logs")
+}
+
+model IFTAFuelLog {
+  id            String        @id @default(cuid())
+  quarterId     String
+  quarter       IFTAQuarter   @relation(fields: [quarterId], references: [id], onDelete: Cascade)
+  date          DateTime
+  state         String
+  gallons       Float
+  pricePerGallon Float?
+  vendor        String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("ifta_fuel_logs")
+}
+
+// ─── Drug Testing ────────────────────────────────────────────────────────────
+
+model DrugTest {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testType        DrugTestType
+  status          DrugTestStatus
+  testDate        DateTime?
+  resultDate      DateTime?
+  result          DrugTestResult?
+  consortiumName  String?
+  mroName         String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("drug_tests")
+}
+
+enum DrugTestType {
+  PRE_EMPLOYMENT
+  RANDOM
+  POST_ACCIDENT
+  REASONABLE_SUSPICION
+  RETURN_TO_DUTY
+  FOLLOW_UP
+}
+
+enum DrugTestStatus {
+  SCHEDULED
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum DrugTestResult {
+  NEGATIVE
+  POSITIVE
+  DILUTE
+  CANCELLED
+}
+
+model ConsortiumEnrollment {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  consortiumName  String
+  memberSince     DateTime?
+  memberId        String?
+  nextRandomDue   DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("consortium_enrollments")
+}
+
+// ─── Renewal Alerts ──────────────────────────────────────────────────────────
+
+model RenewalItem {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemType    RenewalItemType
+  title       String
+  expiresAt   DateTime
+  renewedAt   DateTime?
+  alertDays   Int[]           @default([90, 60, 30, 14, 7])
+  notes       String?
+  policyNumber String?
+  vendor      String?
+  cost        Float?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("renewal_items")
+}
+
+enum RenewalItemType {
+  OPERATING_AUTHORITY
+  INSURANCE_LIABILITY
+  INSURANCE_CARGO
+  IRP
+  UCR
+  BOC3
+  OTHER
+}
